@@ -1,0 +1,8 @@
+*.pdf
+*.xlsx
+*.zip
+*.pptx
+cache
+intel
+public
+__pycache__
