@@ -1,8 +1,9 @@
 import serial
 
 from color_table import *
+from config import *
 
-def capture_thermo_frame(com_port):
+def capture_thermo_frame(com):
     global ambient_temp
     thermo_txt_buf = ''
     read_thermo_frame = False
@@ -10,7 +11,10 @@ def capture_thermo_frame(com_port):
     complete_frame = False
     while complete_frame == False:
         while True:
-            line = com_port.readline().decode('utf-8').replace('\n', '').replace('\r', '')
+            line = com.readline().decode('utf-8').replace('\n', '').replace('\r', '')
+            if len(line)==0:
+                print('[ERROR] COM port ({}) timed out. A wrong port is specified possibly.'.format(com_port))
+                continue
             if line[0] == '@':
                 ambient_temp = float(line[1:])      # ambient temperature
                 read_thermo_frame = True
@@ -30,7 +34,7 @@ def capture_thermo_frame(com_port):
 
         # check data integrity
         if len(thermo) != 64:   # 64 = 8*8
-            print('[ERROR] Failed to capture a thermal frame - Starting over again')
+            print('[ERROR] Incomplete thermal frame is captured - Starting over again')
             thermo_txt_buf = ''
             thermo_frame_start = False
         else:

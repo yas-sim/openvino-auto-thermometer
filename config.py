@@ -1,10 +1,10 @@
+# Face database directory settings
 image_dir    = './face_images'
 database_dir = './face_db'
 
 # COM port definitions
-com_port  = 'COM3'
+com_port  = 'COM6'
 com_speed = 115200
-
 
 # OpenVINO Deep-learning model definitions
 FD_model = 'intel/face-detection-retail-0004/FP16/face-detection-retail-0004.xml'
