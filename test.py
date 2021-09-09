@@ -50,13 +50,19 @@ def crop_ROIs(ROIs, image):
     for ROI in ROIs:
         ROI.append(crop_ROI(ROI, image))
 
-def draw_ROI(ROI, image):
+def draw_ROI(ROI, image, threshold=0.7):
     height, width = image.shape[:1+1]
+    confidence = ROI[0]
     x0 = int(ROI[2] * width)
     y0 = int(ROI[3] * height)
     x1 = int(ROI[4] * width)
     y1 = int(ROI[5] * height)
-    cv2.rectangle(image, (x0, y0), (x1, y1), (0,255,0), 2)
+    if confidence > threshold:
+        color = (  0,255,  0)       # Green
+    else:
+        #color = (  0,  0,255)       # Red
+        color = (255,  0,  0)       # Blue
+    cv2.rectangle(image, (x0, y0), (x1, y1), color, 2)
 
 def draw_ROIs(ROIs, image):
     for ROI in ROIs:
@@ -172,12 +178,20 @@ def measure_temp(ROI, pt, temp_map, image, draw_marker_flag=True):
                         (255,0,255), cv2.MARKER_CROSS, 10, 5)
     return temp
 
-def draw_label(ROI, image, person_name):
+def draw_label(ROI, image, text):
     _, _, x0, y0, x1, y1 = ROI
     height, width = image.shape[:1+1]
     x = int(x0 * width)
     y = int(y0 * height)
-    cv2.putText(image, person_name, (x,y), cv2.FONT_HERSHEY_PLAIN, 2, (0,255,255), 2)
+    (w, h), baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_PLAIN, 2, 2)
+    cv2.putText(image, text, (x,y-baseline), cv2.FONT_HERSHEY_PLAIN, 2, (  0,  0,  0), 5)
+    cv2.putText(image, text, (x,y-baseline), cv2.FONT_HERSHEY_PLAIN, 2, (  0,255,255), 2)
+
+def draw_ambient_temp(temp, image):
+    msg = 'Ambient temp : {:4.1f}C'.format(temp)
+    (w, h), baseline = cv2.getTextSize(msg, cv2.FONT_HERSHEY_PLAIN, 2, 2)
+    cv2.putText(image, msg, (0,h+baseline), cv2.FONT_HERSHEY_PLAIN, 2, (  0,  0,  0), 5)
+    cv2.putText(image, msg, (0,h+baseline), cv2.FONT_HERSHEY_PLAIN, 2, (255,255,255), 2)
 
 #---------------------------------------------------------------------
 
@@ -267,10 +281,13 @@ while key != 27:
 
     # draw results
     draw_ROIs(ROIs, img_disp)
+    draw_ambient_temp(ambient_temp, img_disp)
     if not ROI is None:
         px, py = calc_measure_point(ROI, LM_res)
         temp = measure_temp(ROI, (px, py), temp_map, img_disp)
         msg = '{} {:4.1f}C {:4.1f}%'.format(person_name, temp, (1-dist)*100)
+        ROI[0] = 1-dist             # replace confidence value with similarity value
+        draw_ROI(ROI, img_disp)
         draw_label(ROI, img_disp, msg)
         draw_landmarks(ROI, LM_res, img_disp)
     cv2.imshow('Automatic Body Temperature Measuring System', img_disp)
