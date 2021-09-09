@@ -9,10 +9,10 @@ import cv2
 from scipy import spatial
 
 from config import *
-from amg8833 import *
-from openvino_model import *
-from excel_operation import *
-from common_face_utils import *
+from submodules.amg8833 import *
+from submodules.openvino_model import *
+from submodules.excel_operation import *
+from submodules.common_face_utils import *
 
 #---------------------------------------------------------------------
 
