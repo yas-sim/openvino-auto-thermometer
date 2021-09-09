@@ -20,7 +20,7 @@ class openvino_model:
         if not model_file is None:
             self.load_model(model_file, device=device, config=config, num_requests=num_requests)
 
-    def load_model(self, model_file, device='CPU', config='', num_requests=1):
+    def load_model(self, model_file, device='CPU', config='', num_requests=1, verbose=True):
         model_info = {}
         if '.' in model_file:
             base, ext = os.path.splitext(model_file)
@@ -28,6 +28,8 @@ class openvino_model:
             base = model_file
         self.fpath, self.fbase = os.path.split(base)
         self.fname = base
+        if verbose:
+            print('[INFO] Loading a DL model -', self.fbase, '...', end='', flush=True)
         self.net = openvino_model.ie.read_network(base+'.xml', base+'.bin')
         self.inblob_names = list(self.net.input_info)
         self.outblob_names = list(self.net.outputs)
@@ -35,6 +37,8 @@ class openvino_model:
         self.outputs = {outblob : self.net.outputs[outblob].shape              for outblob in self.outblob_names }
         self.inf_inputs = { inblob : None for inblob in self.inblob_names }   # template for inference input
         self.exe_net = openvino_model.ie.load_network(self.net, device, config=config, num_requests=num_requests)
+        if verbose:
+            print('Done')
 
     def image_sync_infer(self, img):
         if len(self.inputs)>1:

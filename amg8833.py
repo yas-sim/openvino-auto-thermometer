@@ -7,24 +7,34 @@ def capture_thermo_frame(com_port):
     thermo_txt_buf = ''
     read_thermo_frame = False
     thermo_frame_start = False
-    while True:
-        line = com_port.readline().decode('utf-8').replace('\n', '').replace('\r', '')
-        if line[0] == '@':
-            ambient_temp = float(line[1:])      # ambient temperature
-            read_thermo_frame = True
-            continue
-        if read_thermo_frame == False:
-            continue
-        if line[0] == '[':
-            tmermo_txt_buf = ''
-            thermo_frame_start = True
-            continue
-        if line[0] == ']' and thermo_frame_start:
-            break
-        if thermo_frame_start:
-            thermo_txt_buf += line
+    complete_frame = False
+    while complete_frame == False:
+        while True:
+            line = com_port.readline().decode('utf-8').replace('\n', '').replace('\r', '')
+            if line[0] == '@':
+                ambient_temp = float(line[1:])      # ambient temperature
+                read_thermo_frame = True
+                continue
+            if read_thermo_frame == False:
+                continue
+            if line[0] == '[':
+                tmermo_txt_buf = ''
+                thermo_frame_start = True
+                continue
+            if line[0] == ']' and thermo_frame_start:
+                break
+            if thermo_frame_start:
+                thermo_txt_buf += line
 
-    thermo = [ float(dt) for dt in thermo_txt_buf.split(',') ]
+        thermo = [ float(dt) for dt in thermo_txt_buf.split(',') ]
+
+        # check data integrity
+        if len(thermo) != 64:   # 64 = 8*8
+            print('[ERROR] Failed to capture a thermal frame - Starting over again')
+            thermo_txt_buf = ''
+            thermo_frame_start = False
+        else:
+            complete_frame = True
 
     return thermo, ambient_temp
 

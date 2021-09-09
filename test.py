@@ -227,8 +227,11 @@ while key != 27:
         aligned_face = align_face(cropped_face, LM_res)
         FR_res = FR_net.image_sync_infer(aligned_face)[FR_net.outblob_names[0]]     # extract feature vector from a face
         feat_vec = FR_res.ravel()
-        idx, dist = search_face_db(feat_vec, face_db)                               # feature vector matching (face recognition)
-        person_id, person_name, _ = face_db[idx]
+        if len(face_db)>0:
+            idx, dist = search_face_db(feat_vec, face_db)                               # feature vector matching (face recognition)
+            person_id, person_name, _ = face_db[idx]
+        else:
+            idx, dist, person_id, person_name = 0, 1.0, -1, 'none'
     else:
         ROI = None
 

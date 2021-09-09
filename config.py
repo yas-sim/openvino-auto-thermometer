@@ -1,5 +1,5 @@
 # COM port definitions
-com_port  = 'COM6'
+com_port  = 'COM3'
 com_speed = 115200
 
 
