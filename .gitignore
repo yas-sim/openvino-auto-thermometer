@@ -6,3 +6,5 @@ cache
 intel
 public
 __pycache__
+face_db
+face_images
