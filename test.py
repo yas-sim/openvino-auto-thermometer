@@ -1,5 +1,6 @@
 import sys
 import glob
+import datetime
 
 import serial
 import numpy as np
@@ -8,6 +9,7 @@ import cv2
 from config import *
 from amg8833 import *
 from openvino_model import *
+from excel_operation import *
 
 #---------------------------------------------------------------------
 
@@ -179,19 +181,22 @@ def draw_label(ROI, image, person_name):
 
 #---------------------------------------------------------------------
 
+# Open serial port (COM port) for AMG8833 temperature area sensor
+try:
+    com = serial.Serial(com_port, com_speed, timeout=None)
+except serial.serialutil.SerialException:
+    print('Failed to open serial port \'{}\''.format(com_port))
+    sys.exit()
 
-com = serial.Serial(com_port, com_speed, timeout=None)
-
+# Load OpenVINO Deep-learning models
 config = {'CACHE_DIR' : './cache'}
 FD_net = openvino_model(FD_model, 'GPU', config=config)
 FR_net = openvino_model(FR_model, 'GPU', config=config)
 LM_net = openvino_model(LM_model, 'GPU', config=config)
-#print(FD_net)
-#{'file_name': 'face-detection-adas-0001', 'inputs': [{'data': [1, 3, 384, 672]}], 'outputs': [{'detection_out': [1, 1, 200, 7]}], 'net': <openvino.inference_engine.ie_api.IENetwork object at 0x000001D87FC6DBD0>}
 
+# Open USB webCam
 img_width  = 640
 img_height = 480
-
 cam = cv2.VideoCapture(0)
 if cam.isOpened() == False:
     print('Failed to open a USB webCam (0)')
@@ -199,33 +204,38 @@ if cam.isOpened() == False:
 cam.set(cv2.CAP_PROP_FRAME_WIDTH,  img_width)
 cam.set(cv2.CAP_PROP_FRAME_HEIGHT, img_height)
 
+# Read and register face database
 face_db = scan_and_register_faces('./face_db', FD_net, FR_net, LM_net)
 
 overlay  = np.zeros((img_height, img_width, 3), dtype=np.uint8)
 temp_map = np.zeros((img_height, img_width   ), dtype=np.float32)
 
+temp_record = []        # record of measured temerature data (to be exported to Excel)
+
 key = -1
 while key != 27:
     sts, img = cam.read()
-    res = FD_net.image_sync_infer(img)[FD_net.outblob_names[0]]
+
+    # Face detection - Face landmark detection - Face recognition
+    res = FD_net.image_sync_infer(img)[FD_net.outblob_names[0]]     # detect face
     ROIs = get_ROIs(res[0][0])
     if len(ROIs)>0:
-        ROI = find_largest_ROI(ROIs)
+        ROI = find_largest_ROI(ROIs)                                                # find the largest face in a picture
         cropped_face = crop_ROI(ROI, img)
-        LM_res = LM_net.image_sync_infer(cropped_face)[LM_net.outblob_names[0]]
+        LM_res = LM_net.image_sync_infer(cropped_face)[LM_net.outblob_names[0]]     # detect landmarks
         LM_res = LM_res.reshape((5,2))
         aligned_face = align_face(cropped_face, LM_res)
-        FR_res = FR_net.image_sync_infer(aligned_face)[FR_net.outblob_names[0]]
+        FR_res = FR_net.image_sync_infer(aligned_face)[FR_net.outblob_names[0]]     # extract feature vector from a face
         feat_vec = FR_res.ravel()
-        idx, dist = search_face_db(feat_vec, face_db)
+        idx, dist = search_face_db(feat_vec, face_db)                               # feature vector matching (face recognition)
         person_id, person_name, _ = face_db[idx]
-        print(person_id, person_name, dist)
     else:
         ROI = None
 
-    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    img_gray = cv2.split(img_gray)[0]
-    img_edge = cv2.Canny(img_gray, 64, 128)
+    # Convert the picture into line drawing (edge detection)
+    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)        # color -> gray
+    img_gray = cv2.split(img_gray)[0]                       # 3ch -> 1ch
+    img_edge = cv2.Canny(img_gray, 64, 128)                 # edge detection
     img_disp = cv2.merge([img_edge, img_edge, img_edge])    # 1ch -> 3ch
 
     thermo, ambient_temp = capture_thermo_frame(com)
@@ -252,6 +262,7 @@ while key != 27:
     thermo_map = cv2.resize(thermo_map, dsize=(0,0), fx=mag, fy=mag, interpolation=interpolation)
     temp_map[:, int(center_x-height/2):int(center_x+height/2)] = thermo_map
 
+    # draw results
     draw_ROIs(ROIs, img_disp)
     if not ROI is None:
         px, py = calc_measure_point(ROI, LM_res)
@@ -259,8 +270,12 @@ while key != 27:
         msg = '{} {:4.1f}C {:4.1f}%'.format(person_name, temp, (1-dist)*100)
         draw_label(ROI, img_disp, msg)
         draw_landmarks(ROI, LM_res, img_disp)
-    cv2.imshow('test', img_disp)
+    cv2.imshow('Automatic Body Temperature Measuring System', img_disp)
     key = cv2.waitKey(1)
+
+dt = datetime.datetime.now()
+filename = 'body_temp_record_{:04}{:02}{:02}-{:02}{:02}{:02}.xlsx'.format(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+export_to_excel(filename, temp_record)
 
 cam.release()
 com.close()
