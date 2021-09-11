@@ -1,12 +1,13 @@
 import glob
 import json
+import logging
 
 import numpy as np
 import cv2
 
 from config import *
-from openvino_model import *
-from common_face_utils import *
+from submodules.openvino_model import *
+from submodules.common_face_utils import *
 
 class numpyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -19,11 +20,12 @@ class numpyEncoder(json.JSONEncoder):
         else:
             return super(numpyEncoder, self).default(obj)
 
+logging.basicConfig(level=[logging.INFO, logging.DEBUG, logging.WARN, logging.ERROR][0])
+
 # Load OpenVINO Deep-learning models
-config = {'CACHE_DIR' : './cache'}
-FD_net = openvino_model(FD_model, 'GPU', config=config)
-FR_net = openvino_model(FR_model, 'GPU', config=config)
-LM_net = openvino_model(LM_model, 'GPU', config=config)
+FD_net = openvino_model(FD_model, 'CPU')
+FR_net = openvino_model(FR_model, 'CPU')
+LM_net = openvino_model(LM_model, 'CPU')
 
 pictures = glob.glob(os.path.join(image_dir, '*.jpg'))
 num_faces = 0
@@ -51,7 +53,7 @@ for pic in pictures:
     record = [person_id, person_name, feat_vec]
     with open(json_file_name, 'wt') as f:
         json.dump(record, f, cls=numpyEncoder)
-    print('[INFO] Registered -', person_id, person_name)
+    logging.info('Registered - {} {}'.format(person_id, person_name))
     num_faces += 1
 
-print('[INFO] Total', num_faces, 'faces are registered.')
+logging.info('Total {} faces are registered.'.format(num_faces))

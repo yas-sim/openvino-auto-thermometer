@@ -19,6 +19,7 @@
 
 #define AMG88_ADDR 0x68 // in 7bit
 
+#define DIST_SENSOR_PIN (10)
 
 void setup()
 {
@@ -51,6 +52,8 @@ void setup()
     // 
     // Serial.print("sensor temperature:");
     // Serial.println( (sensorTemp[1]*256 + sensorTemp[0])*0.0625);
+
+    pinMode(DIST_SENSOR_PIN, INPUT);    // IR distance sensor
 }
 
 void datasend(int id,int reg,int *data,int datasize)
@@ -91,11 +94,30 @@ float readTemp() {
     return translateTemp(temp_i, 0.0625f);
 }
 
+float readDist(void) {
+    uint16_t dist_read = analogRead(DIST_SENSOR_PIN);
+    // GP2Y0E02A   10cm = 2.0V, 50cm=0.55V
+    const float v10 = (1.32f*1024.f)/3.3f;    // 10cm = 1.32V
+    const float v30 = (0.76f*1024.f)/3.3f;    // 30cm = 0.76V
+    const float grad = (10.f-30.f)/(v10-v30);
+    const float intersect = 10 - (v10 * grad);   // 65.1838 (distance @ v=0)
+    float dist = (float)dist_read * grad + intersect;
+    return dist;
+}
+
 void loop()
 {
+    // Send distance
+    float dist = readDist();
+    Serial.print("%");
+    Serial.println(dist);
+
+    // Send ambient temperature
     float ambient = readTemp();   // Read ambient temperature
     Serial.print("@");
     Serial.println(ambient);
+
+    // Send thermal image
     Serial.println("[");
     // Wire library cannnot contain more than 32 bytes in bufffer
     // 2byte per one data

@@ -30,7 +30,23 @@ def scan_and_register_faces(directory:str, FD_net, FR_net, LM_net):
 
 #---------------------------------------------------------------------
 
-def draw_ROI(ROI, image, threshold=0.7):
+# pos = 0.0 - 1.0
+def draw_meter_v(image, x0, y0, x1, y1, pos, step=10):
+    y_step = (y1-y0)/step
+    scale_w = (x1-x0)/10
+    for y in range(step+1):
+        scale_w = (x1-x0)/2.5 if y % 5 else (x1-x0)/2
+        p1 = ( int(x1),         int(y0+y*y_step) )
+        p2 = ( int(x1-scale_w), int(y0+y*y_step) )
+        cv2.line(image, p1, p2, (0,255,0), 2, cv2.LINE_AA)
+    y = y0+(y1-y0)*pos
+    p0 = (int(x0+(x1-x0)/2), int(y))
+    p1 = (int(x0),           int(y-(x1-x0)/2))
+    p2 = (int(x0),           int(y+(x1-x0)/2))
+    pts = np.array([[p0, p1, p2]])
+    cv2.polylines(image, pts, isClosed=True, color=(0,255,0), thickness=2)
+
+def draw_ROI(ROI, image, threshold=0.7, distance=-1):
     height, width = image.shape[:1+1]
     confidence = ROI[0]
     x0 = int(ROI[2] * width)
@@ -43,6 +59,11 @@ def draw_ROI(ROI, image, threshold=0.7):
         #color = (  0,  0,255)       # Red
         color = (255,  0,  0)       # Blue
     cv2.rectangle(image, (x0, y0), (x1, y1), color, 2)
+    if distance != -1:
+        pos = max(0, min(50, (distance-20))/40)
+        w = (x1-x0)/8
+        draw_meter_v(image, x0-w, y0, x0, y1, pos, step=20)
+
 
 def draw_ROIs(ROIs, image):
     for ROI in ROIs:
@@ -97,13 +118,9 @@ def draw_ambient_temp(temp, image):
 #---------------------------------------------------------------------
 
 def main(com_port:str):
-    # Open serial port (COM port) for AMG8833 temperature area sensor
-    try:
-        com_speed = 115200
-        com = serial.Serial(com_port, com_speed, timeout=3)
-    except serial.serialutil.SerialException:
-        logging.critical('Failed to open serial port \'{}\''.format(com_port))
-        sys.exit(1)
+
+    print('Enter room temp :', end='', flush=True)
+    room_temp = float(input())
 
     # Load OpenVINO Deep-learning models
     inference_device = 'GPU'
@@ -120,6 +137,15 @@ def main(com_port:str):
         sys.exit(1)
     cam.set(cv2.CAP_PROP_FRAME_WIDTH,  img_width)
     cam.set(cv2.CAP_PROP_FRAME_HEIGHT, img_height)
+
+    # Open serial port (COM port) for AMG8833 temperature area sensor
+    try:
+        com_speed = 115200
+        com = serial.Serial(com_port, com_speed, timeout=3)
+    except serial.serialutil.SerialException:
+        logging.critical('Failed to open serial port \'{}\''.format(com_port))
+        sys.exit(1)
+    com.reset_input_buffer();
 
     # Read and register face database
     face_db = scan_and_register_faces('./face_db', FD_net, FR_net, LM_net)
@@ -158,9 +184,11 @@ def main(com_port:str):
         img_edge = cv2.Canny(img_gray, 96, 128)                 # edge detection
         img_disp = cv2.merge([img_edge, img_edge, img_edge])    # 1ch -> 3ch
 
-        thermo, ambient_temp = capture_thermo_frame(com)
+        thermo, ambient_temp, face_distance = capture_thermo_frame(com)
+        ambient_temp = room_temp
+        #logging.info('Distance: {:4.1f}cm'.format(face_distance))
 
-        ofst = 7.0    # 30cm
+        ofst = 3.5    # 30cm
         thermo = temp_compensation(thermo, ambient_temp, ofst)
         max_tmp, min_tmp = max(thermo), min(thermo)
         logging.debug('Ambient {:4.1f}, max {:4.1f}, min {:4.1f}'.format(ambient_temp, max_tmp, min_tmp))
@@ -190,11 +218,17 @@ def main(com_port:str):
             temp = measure_temp(ROI, (px, py), temp_map, img_disp)
             msg = '{} {:4.1f}C {:4.1f}%'.format(person_name, temp, (1-dist)*100)
             ROI[0] = 1-dist             # replace confidence value with similarity value
-            draw_ROI(ROI, img_disp)
+            #draw_ROI(ROI, img_disp)
+            draw_ROI(ROI, img_disp, distance=face_distance)
             draw_label(ROI, img_disp, msg)
             draw_landmarks(ROI, LM_res, img_disp)
         cv2.imshow('Automatic Body Temperature Measuring System', img_disp)
         key = cv2.waitKey(1)
+
+        target_distance = 30.0
+        distance_torelance = 1.0
+        if face_distance>= (target_distance-distance_torelance) and face_distance<=(target_distance+distance_torelance):
+            logging.info('{} - {}C'.format(person_name, temp))
 
     dt = datetime.datetime.now()
     filename = 'body_temp_record_{:04}{:02}{:02}-{:02}{:02}{:02}.xlsx'.format(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)

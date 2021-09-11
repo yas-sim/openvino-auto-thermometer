@@ -6,30 +6,43 @@ from color_table import *
 from config import *
 
 def capture_thermo_frame(com):
-    global ambient_temp
-    thermo_txt_buf = ''
-    read_thermo_frame = False
-    thermo_frame_start = False
-    complete_frame = False
-    while complete_frame == False:
+     # 0:wait for dist, 1:wait for ambient temp
+     # 2:wait for thermal image frame, 3:reading thermal image frame
+     # 4:complete frame
+    status = 0
+    while status < 4:
+        thermo_txt_buf = ''
         while True:
             line = com.readline().decode('utf-8').replace('\n', '').replace('\r', '')
             if len(line)==0:
                 logging.warning('COM port ({}) timed out. A wrong port is specified possibly.'.format(com_port))
                 continue
-            if line[0] == '@':
-                ambient_temp = float(line[1:])      # ambient temperature
-                read_thermo_frame = True
+            if line[0] == '%' and status==0:
+                dist = float(line[1:])
+                status = 1          # wait for ambient temp
                 continue
-            if read_thermo_frame == False:
+            if line[0] == '@':
+                if status == 1:
+                    ambient_temp = float(line[1:])      # ambient temperature
+                    status = 2      # wait for thermal image frame
+                    continue
+                else:
+                    status = 0      # something wrong happened
+                    continue
+            if status <2:
                 continue
             if line[0] == '[':
-                tmermo_txt_buf = ''
-                thermo_frame_start = True
-                continue
-            if line[0] == ']' and thermo_frame_start:
+                if status == 2:
+                    tmermo_txt_buf = ''
+                    status = 3  # reading thermal image frame
+                    continue
+                else:
+                    status = 0  # something wrong happened
+                    continue
+            if line[0] == ']' and status==3:
+                status = 4 # complete
                 break
-            if thermo_frame_start:
+            if status == 3:
                 thermo_txt_buf += line
 
         thermo = [ float(dt) for dt in thermo_txt_buf.split(',') ]
@@ -37,12 +50,10 @@ def capture_thermo_frame(com):
         # check data integrity
         if len(thermo) != 64:   # 64 = 8*8
             logging.warning('Incomplete thermal frame is captured - Starting over again')
-            thermo_txt_buf = ''
-            thermo_frame_start = False
         else:
-            complete_frame = True
+            break
 
-    return thermo, ambient_temp
+    return thermo, ambient_temp, dist
 
 def color_interpolate(dt):
     global color_table
