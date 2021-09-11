@@ -8,3 +8,6 @@ public
 __pycache__
 face_db
 face_images
+build
+datasheet
+*.spec
