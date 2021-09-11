@@ -35,11 +35,16 @@ class openvino_model:
         self.inputs  = {inblob  : self.net.input_info[inblob].tensor_desc.dims for inblob  in self.inblob_names  }
         self.outputs = {outblob : self.net.outputs[outblob].shape              for outblob in self.outblob_names }
         self.inf_inputs = { inblob : None for inblob in self.inblob_names }   # template for inference input
+        if device == 'GPU':
+            if isinstance(config, dict) == False:
+                config = {}
+            config['CACHE_DIR'] = './cache'         # Forcibly enables GPU model caching
+        logging.debug('Config={}'.format(config))
         self.exe_net = openvino_model.ie.load_network(self.net, device, config=config, num_requests=num_requests)
 
     def image_sync_infer(self, img):
         if len(self.inputs)>1:
-            print('[ERROR] Only single input model is supported.')
+            logging.error('Only single input model is supported.')
             return None
         inblob = self.inblob_names[0]
         shape = self.inputs[inblob]

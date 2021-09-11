@@ -102,21 +102,21 @@ def main(com_port:str):
         com_speed = 115200
         com = serial.Serial(com_port, com_speed, timeout=3)
     except serial.serialutil.SerialException:
-        logging.error('Failed to open serial port \'{}\''.format(com_port))
+        logging.critical('Failed to open serial port \'{}\''.format(com_port))
         sys.exit(1)
 
     # Load OpenVINO Deep-learning models
-    config = {'CACHE_DIR' : './cache'}
-    FD_net = openvino_model(FD_model, 'GPU', config=config)
-    FR_net = openvino_model(FR_model, 'GPU', config=config)
-    LM_net = openvino_model(LM_model, 'GPU', config=config)
+    inference_device = 'GPU'
+    FD_net = openvino_model(FD_model, inference_device)
+    FR_net = openvino_model(FR_model, inference_device)
+    LM_net = openvino_model(LM_model, inference_device)
 
     # Open USB webCam
     img_width  = 640
     img_height = 480
     cam = cv2.VideoCapture(0)
     if cam.isOpened() == False:
-        logging.error('Failed to open a USB webCam (0)')
+        logging.critical('Failed to open a USB webCam (0)')
         sys.exit(1)
     cam.set(cv2.CAP_PROP_FRAME_WIDTH,  img_width)
     cam.set(cv2.CAP_PROP_FRAME_HEIGHT, img_height)
@@ -155,7 +155,7 @@ def main(com_port:str):
         # Convert the picture into line drawing (edge detection)
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)        # color -> gray
         img_gray = cv2.split(img_gray)[0]                       # 3ch -> 1ch
-        img_edge = cv2.Canny(img_gray, 64, 128)                 # edge detection
+        img_edge = cv2.Canny(img_gray, 96, 128)                 # edge detection
         img_disp = cv2.merge([img_edge, img_edge, img_edge])    # 1ch -> 3ch
 
         thermo, ambient_temp = capture_thermo_frame(com)
@@ -199,17 +199,17 @@ def main(com_port:str):
     dt = datetime.datetime.now()
     filename = 'body_temp_record_{:04}{:02}{:02}-{:02}{:02}{:02}.xlsx'.format(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
     export_to_excel(filename, temp_record)
+    logging.info('"{}" is generated.'.format(filename))
 
     cam.release()
     com.close()
     return 0
 
 if __name__ == '__main__':
-    #logging.basicConfig(level=logging.INFO)
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=[logging.INFO, logging.DEBUG, logging.WARN, logging.ERROR][0])
     com_port = find_thermo_sensor()
     if com_port is None:
-        logging.error('Thermo image sensor is not attached.')
+        logging.critical('Thermal image sensor is not attached.')
         sys.exit(1)
     logging.info('{} will be used to communicate with the thermo image sensor'.format(com_port))
 
