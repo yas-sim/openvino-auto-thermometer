@@ -1,4 +1,6 @@
+import logging
 import serial
+import serial.tools.list_ports
 
 from color_table import *
 from config import *
@@ -13,7 +15,7 @@ def capture_thermo_frame(com):
         while True:
             line = com.readline().decode('utf-8').replace('\n', '').replace('\r', '')
             if len(line)==0:
-                print('[ERROR] COM port ({}) timed out. A wrong port is specified possibly.'.format(com_port))
+                logging.warning('COM port ({}) timed out. A wrong port is specified possibly.'.format(com_port))
                 continue
             if line[0] == '@':
                 ambient_temp = float(line[1:])      # ambient temperature
@@ -34,7 +36,7 @@ def capture_thermo_frame(com):
 
         # check data integrity
         if len(thermo) != 64:   # 64 = 8*8
-            print('[ERROR] Incomplete thermal frame is captured - Starting over again')
+            logging.warning('Incomplete thermal frame is captured - Starting over again')
             thermo_txt_buf = ''
             thermo_frame_start = False
         else:
@@ -64,3 +66,16 @@ def temp_compensation(thermo, t_amb, ofst=0):
     #offset = -0.323333 * t_amb + 11.6 + ofst
     #print(t_amb, offset)
     return [ t+offset for t in thermo ]
+
+def find_thermo_sensor():
+    com_port = None
+    available_com_ports = serial.tools.list_ports.comports()
+    for com in available_com_ports:
+        if com.vid is None:
+            pid, vid = 0, 0
+        else:
+            pid, vid = com.pid, com.vid
+        logging.debug('COM port {}, PID, {:04x}, VID {:04x}'.format(com.device, pid, vid))
+        if pid == 0x9206 and vid == 0x1b4f:     # PID(0x9206 == Pro micro Arduino, VID(0x1b4f) == SparkFun)
+            com_port = com.device
+    return com_port

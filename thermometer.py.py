@@ -2,6 +2,7 @@ import sys
 import glob
 import datetime
 import json
+import logging
 
 import serial
 import numpy as np
@@ -23,8 +24,8 @@ def scan_and_register_faces(directory:str, FD_net, FR_net, LM_net):
         with open(json_file, 'rt') as f:
             json_data = json.load(f)
         face_db.append(json_data)
-        print('[INFO] Registered:', json_file)
-    print('[INFO] Total', len(face_db), 'faces are registered.')
+        logging.info('Registered: {}'.format(json_file))
+    logging.info('Total {} faces are registered.'.format(len(face_db)))
     return face_db
 
 #---------------------------------------------------------------------
@@ -95,13 +96,14 @@ def draw_ambient_temp(temp, image):
 
 #---------------------------------------------------------------------
 
-def main():
+def main(com_port:str):
     # Open serial port (COM port) for AMG8833 temperature area sensor
     try:
+        com_speed = 115200
         com = serial.Serial(com_port, com_speed, timeout=3)
     except serial.serialutil.SerialException:
-        print('Failed to open serial port \'{}\''.format(com_port))
-        sys.exit()
+        logging.error('Failed to open serial port \'{}\''.format(com_port))
+        sys.exit(1)
 
     # Load OpenVINO Deep-learning models
     config = {'CACHE_DIR' : './cache'}
@@ -114,8 +116,8 @@ def main():
     img_height = 480
     cam = cv2.VideoCapture(0)
     if cam.isOpened() == False:
-        print('Failed to open a USB webCam (0)')
-        sys.exit()
+        logging.error('Failed to open a USB webCam (0)')
+        sys.exit(1)
     cam.set(cv2.CAP_PROP_FRAME_WIDTH,  img_width)
     cam.set(cv2.CAP_PROP_FRAME_HEIGHT, img_height)
 
@@ -161,7 +163,7 @@ def main():
         ofst = 7.0    # 30cm
         thermo = temp_compensation(thermo, ambient_temp, ofst)
         max_tmp, min_tmp = max(thermo), min(thermo)
-        #print(ambient_temp, max_tmp, min_tmp)
+        logging.debug('Ambient {:4.1f}, max {:4.1f}, min {:4.1f}'.format(ambient_temp, max_tmp, min_tmp))
         thermo_img = np.array(color_map(thermo)).astype(np.uint8)
         thermo_img = thermo_img.reshape((8,8,3))
 
@@ -203,4 +205,12 @@ def main():
     return 0
 
 if __name__ == '__main__':
-    sys.exit(main())
+    #logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
+    com_port = find_thermo_sensor()
+    if com_port is None:
+        logging.error('Thermo image sensor is not attached.')
+        sys.exit(1)
+    logging.info('{} will be used to communicate with the thermo image sensor'.format(com_port))
+
+    sys.exit(main(com_port))
