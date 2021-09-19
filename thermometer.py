@@ -227,7 +227,7 @@ def main(com_port:str):
     return 0
 
 if __name__ == '__main__':
-    logging.basicConfig(level=[logging.INFO, logging.DEBUG, logging.WARN, logging.ERROR][1])
+    logging.basicConfig(level=[logging.INFO, logging.DEBUG, logging.WARN, logging.ERROR][0])
     com_port = find_thermo_sensor()
     if com_port is None:
         logging.critical('Thermal image sensor is not attached.')
