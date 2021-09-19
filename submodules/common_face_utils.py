@@ -73,8 +73,12 @@ def align_face(image, face_landmark):
     cv2.warpAffine(tmpimg, transform, tuple(scale), tmpimg, flags=cv2.WARP_INVERSE_MAP)
     return tmpimg
 
+def calc_ROI_area(ROI):
+    _,_,x0,y0,x1,y1 = ROI
+    return (x1-x0)*(y1-y0)
+
 def find_largest_ROI(ROIs):
-    areas = [ (x1-x0)*(y1-y0) for _,_,x0,y0,x1,y1 in ROIs ]
+    areas = [ calc_ROI_area(ROI) for ROI in ROIs ]
     idx = areas.index(max(areas))
     return ROIs[idx]
 
@@ -85,3 +89,4 @@ def search_face_db(feat_vec, face_db):
         distances.append(dist)
     min_idx = distances.index(min(distances))
     return min_idx, distances[min_idx]
+
