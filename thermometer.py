@@ -74,18 +74,26 @@ def draw_temps(comp_temp, obj_temp, amb_temp, image):
     cv2.putText(image, msg, (0,h+baseline), cv2.FONT_HERSHEY_PLAIN, 2, (255,255, 64), 2)
 
 
+# Consolidates records
+#  - Data for the same person ID will be averaged.
 def consolidate_result(temp_record:list):
     consolidate = []
     unique_id = set(np.array(temp_record)[:, 0])    # get unique IDs
     for pid in unique_id:
-        temp = []
+        cmp_tmp = []
+        obj_tmp = []
+        amb_tmp = []
         for row in temp_record:
             if row[0] == pid:
-                temp.append(row[2])
+                cmp_tmp.append(row[2])
+                obj_tmp.append(row[3])
+                amb_tmp.append(row[4])
                 tmp_id   = row[0]
                 tmp_name = row[1]
-        avg = sum(temp) / len(temp)
-        consolidate.append([tmp_id, tmp_name, avg])
+        cmp_avg = sum(cmp_tmp) / len(cmp_tmp)
+        obj_avg = sum(obj_tmp) / len(obj_tmp)
+        amb_avg = sum(amb_tmp) / len(amb_tmp)
+        consolidate.append([tmp_id, tmp_name, cmp_avg, obj_avg, amb_avg])
     sorted_record = sorted(consolidate, key=lambda record : record[0])
     return sorted_record
 
@@ -112,7 +120,7 @@ def main(com_port:str):
     cam.set(cv2.CAP_PROP_FRAME_WIDTH,  img_width)
     cam.set(cv2.CAP_PROP_FRAME_HEIGHT, img_height)
 
-    # Open serial port (COM port) for AMG8833 temperature area sensor
+    # Open serial port (COM port) for Arduino (Adafruit Qwiic Pro Micro USB-C)
     try:
         com_speed = 115200
         com = serial.Serial(com_port, com_speed, timeout=3)
@@ -176,13 +184,13 @@ def main(com_port:str):
         comp_temp = temp_compensation(object_temp, ambient_temp, ofst)
         logging.debug('Distance {:4.1f}cm Ambient {:4.1f}C, Object {:4.1f}C, Compensated {:4.1f}C'.format(face_distance, ambient_temp, object_temp, comp_temp))
 
-        # Check distance and face validity and record the measured temp
+        # Check distance and face validity, and record the measured temp
         target_distance    = 6.0        # unit = cm
         distance_torelance = 0.5        # unit = cm
         distance_valid = True if face_distance>= (target_distance-distance_torelance) and face_distance<=(target_distance+distance_torelance) else False
         face_valid     = True if last_recognition_id != -1 else False
         if distance_valid and face_valid:
-            temp_record.append([last_recognition_id, last_recognition_name, comp_temp])
+            temp_record.append([last_recognition_id, last_recognition_name, comp_temp, object_temp, ambient_temp])
             beep_obj.play()
             if current_person_id != last_recognition_id:         # measure temp
                 ma = [ comp_temp ]          # reset moving average buffer
@@ -200,7 +208,7 @@ def main(com_port:str):
                     avg_temp = -1
             else:
                 avg_temp = -1
-            
+
         # Draw results
         draw_ROIs(ROIs, img_disp)
         draw_temps(avg_temp, object_temp, ambient_temp, img_disp)
@@ -217,9 +225,9 @@ def main(com_port:str):
     dt = datetime.datetime.now()
     filename = 'body_temp_record_{:04}{:02}{:02}-{:02}{:02}{:02}.xlsx'.format(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
     logging.debug(temp_record)
-    consolidated_record = consolidate_result(temp_record)
+    consolidated_record = consolidate_result(temp_record)           # Consolidates records (同じIDのデータは平均を取ってまとめる)
     logging.debug(consolidated_record)
-    export_to_excel(filename, consolidated_record)
+    export_to_excel(filename, consolidated_record)                  # Export to Excel (Excelファイルに書き出し)
     logging.info('"{}" is generated.'.format(filename))
 
     cam.release()
@@ -230,8 +238,8 @@ if __name__ == '__main__':
     logging.basicConfig(level=[logging.INFO, logging.DEBUG, logging.WARN, logging.ERROR][0])
     com_port = find_thermo_sensor()
     if com_port is None:
-        logging.critical('Thermal image sensor is not attached.')
+        logging.critical('Thermal sensor is not attached.')
         sys.exit(1)
-    logging.info('{} will be used to communicate with the thermo image sensor'.format(com_port))
+    logging.info('{} will be used to communicate with the thermo sensor'.format(com_port))
 
     sys.exit(main(com_port))
