@@ -22,8 +22,8 @@ def receive_temp_data(com):
 
 def temp_compensation(t_obj, t_amb, ofst=0):
     #offset = -0.323333 * t_amb + 13.9 + ofst    # original (intercept=13.9)
-    offset = -0.323333 * t_amb + 11.6 + ofst
-    #print(offset)
+    #offset = -0.323333 * t_amb + 11.6 + ofst
+    offset = -0.2 * t_amb + 7.3 + ofst
     return t_obj + offset
 
 def find_thermo_sensor():
