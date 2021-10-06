@@ -5,6 +5,8 @@ This program measures the body temperature of multiple people using `MLX90614ESF
 
 # 実行方法 How to run
 
+![how_it_work](./resources/how_it_work.png)
+
 ## 1.顔撮影 Capturing face image (WebCam -> `.JPG`)  
 '`顔撮影.bat`'を使って撮影。  
 - 出席番号(ID番号)、氏名(英文字＋'_'のみ使用可。日本語不可)を入力して開始。
