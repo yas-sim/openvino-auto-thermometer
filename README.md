@@ -37,6 +37,8 @@ This program measures the body temperature of multiple people using `MLX90614ESF
 |`register_faces.py`|JPEGイメージから顔を検出し、データベースに登録。データはJSONファイルとして、出席番号、氏名、顔の特徴ベクトルとともに保存される。イメージデータはimage_dir、データベースレコード(JSON)はdatabase_dirで指定(config.py)。JSONファイル作成後は元のJPEGファイルは必要ない（削除可能）|
 |`thermometer.py`|体温測定プログラム。ESCキーで終了したときに測定結果を保存したEXCELファイルを作成|
 
+# Hardware Configuration
+![HW config](./resources/hardware_configuration.png)
 
 # 部材
 
@@ -47,5 +49,6 @@ This program measures the body temperature of multiple people using `MLX90614ESF
 |SparkFun|SFE-PRT-14426|Qwiic cable 50mm|1|https://www.switch-science.com/catalog/3542/|133|
 |*|*|USB webCam, FOV~60deg, >VGA|1|-|
 |Fhdpeebu|-|MLX90614ESF Non-contact temperature sensor module|1|https://www.amazon.co.jp/gp/product/B095JNFNK9|1,690|
+|-|SHARP|GP2Y0E02A IR distance sensor|1|https://akizukidenshi.com/catalog/g/gI-07546/|720|
 |~~Switch Science~~|~~SSCI-033954~~|~~Conta(tm) Thermography module - AMG8833~~|~~1~~|https://www.switch-science.com/catalog/3395/|4,950|
 
