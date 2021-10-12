@@ -77,6 +77,8 @@ def draw_temps(comp_temp, obj_temp, amb_temp, image):
 # Consolidates records
 #  - Data for the same person ID will be averaged.
 def consolidate_result(temp_record:list):
+    dt = datetime.datetime.now()
+    date = '{:04}/{}/{}'.format(dt.year, dt.month, dt.day)
     consolidate = []
     unique_id = set(np.array(temp_record)[:, 0])    # get unique IDs
     for pid in unique_id:
@@ -93,7 +95,8 @@ def consolidate_result(temp_record:list):
         cmp_avg = sum(cmp_tmp) / len(cmp_tmp)
         obj_avg = sum(obj_tmp) / len(obj_tmp)
         amb_avg = sum(amb_tmp) / len(amb_tmp)
-        consolidate.append([tmp_id, tmp_name, cmp_avg, obj_avg, amb_avg])
+        fever_status =  '37°以上' if cmp_avg >= 37.0 else '37°以下'             # check if the person has fever
+        consolidate.append([tmp_id, tmp_name, date, fever_status, cmp_avg, obj_avg, amb_avg])
     sorted_record = sorted(consolidate, key=lambda record : record[0])
     return sorted_record
 
