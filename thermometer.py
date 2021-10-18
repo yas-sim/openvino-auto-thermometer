@@ -95,7 +95,7 @@ def consolidate_result(temp_record:list):
         cmp_avg = sum(cmp_tmp) / len(cmp_tmp)
         obj_avg = sum(obj_tmp) / len(obj_tmp)
         amb_avg = sum(amb_tmp) / len(amb_tmp)
-        fever_status =  '37°以上' if cmp_avg >= 37.0 else '37°以下'             # check if the person has fever
+        fever_status =  '37度以上' if cmp_avg >= 37.0 else '37度以下'             # check if the person has fever
         consolidate.append([tmp_id, tmp_name, date, fever_status, cmp_avg, obj_avg, amb_avg])
     sorted_record = sorted(consolidate, key=lambda record : record[0])
     return sorted_record

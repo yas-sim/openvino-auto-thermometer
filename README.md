@@ -54,3 +54,7 @@ This program measures the body temperature of multiple people using `MLX90614ESF
 |-|SHARP|GP2Y0E02A IR distance sensor|1|https://akizukidenshi.com/catalog/g/gI-07546/|720|
 |~~Switch Science~~|~~SSCI-033954~~|~~Conta(tm) Thermography module - AMG8833~~|~~1~~|https://www.switch-science.com/catalog/3395/|4,950|
 
+# Note
+MLX90614にはFOV (Field of View:視野角)の異なるいくつかの製品があります。狭FOV(xCIなど)のセンサーを使えば多少離れた位置からでも体温測定が可能です。広FOVのセンサー(xAAなど)を使用した場合はセンサーに近づかないと正確な体温が計測できません。  
+The non-contact IR sensor, MLX90614 has several variants and each variant has different FOV. You could measure the forehead temerature with certain distance if you use a narrower FOV part. You need to get close to the sensor if you use a wider FOV part, or you'll get incorrect body temperature.      
+![FOV](./resources/mlx90614_fov.jpg)
