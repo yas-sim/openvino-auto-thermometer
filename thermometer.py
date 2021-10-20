@@ -184,8 +184,8 @@ def main(com_port:str):
         logging.debug('Distance {:4.1f}cm Ambient {:4.1f}C, Object {:4.1f}C, Compensated {:4.1f}C'.format(face_distance, ambient_temp, object_temp, comp_temp))
 
         # Check distance and face validity, and record the measured temp
-        target_distance    = 4.5        # unit = cm
-        distance_torelance = 0.5        # unit = cm
+        target_distance    = 10.0       # unit = cm
+        distance_torelance =  1.5       # unit = cm
         distance_valid = True if face_distance>= (target_distance-distance_torelance) and face_distance<=(target_distance+distance_torelance) else False
         face_valid     = True if last_recognition_id != -1 else False
         if distance_valid and face_valid:
