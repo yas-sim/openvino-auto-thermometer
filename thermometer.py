@@ -10,7 +10,6 @@ import cv2
 from scipy import spatial
 import simpleaudio
 
-from config import *
 from submodules.openvino_model import *
 from submodules.excel_operation import *
 from submodules.common_face_utils import *
@@ -20,7 +19,7 @@ from submodules.mlx90614 import *
 
 def scan_and_register_faces(directory:str, FD_net, FR_net, LM_net):
     face_db = []
-    json_files = glob.glob(os.path.join(database_dir, '*.json'))
+    json_files = glob.glob(os.path.join(config["system"]["database_dir"], '*.json'))
     for json_file in json_files:
         with open(json_file, 'rt') as f:
             json_data = json.load(f)
@@ -76,7 +75,11 @@ def draw_temps(comp_temp, obj_temp, amb_temp, image):
 
 # Consolidates records
 #  - Data for the same person ID will be averaged.
-def consolidate_result(temp_record:list):
+def consolidate_result(temp_record:list, config):
+    if len(temp_record) == 0:
+        return []
+    dt = datetime.datetime.now()
+    date = '{:04}/{}/{}'.format(dt.year, dt.month, dt.day)
     consolidate = []
     unique_id = set(np.array(temp_record)[:, 0])    # get unique IDs
     for pid in unique_id:
@@ -93,48 +96,44 @@ def consolidate_result(temp_record:list):
         cmp_avg = sum(cmp_tmp) / len(cmp_tmp)
         obj_avg = sum(obj_tmp) / len(obj_tmp)
         amb_avg = sum(amb_tmp) / len(amb_tmp)
-        consolidate.append([tmp_id, tmp_name, cmp_avg, obj_avg, amb_avg])
+        if config["system"]["school_flag"] == "True":
+            fever_status =  '37度以上' if cmp_avg >= 37.0 else '37度以下'             # check if the person has fever
+            record = [tmp_id, tmp_name, date, fever_status, cmp_avg, obj_avg, amb_avg]
+        else:
+            record = [tmp_id, tmp_name, date,               cmp_avg, obj_avg, amb_avg]
+        consolidate.append(record)
     sorted_record = sorted(consolidate, key=lambda record : record[0])
     return sorted_record
 
 #---------------------------------------------------------------------
 
-def main(com_port:str):
-
-    #print('Enter room temp :', end='', flush=True)
-    #room_temp = float(input())
+def main(config):
 
     # Load OpenVINO Deep-learning models
-    inference_device = 'GPU'
-    FD_net = openvino_model(FD_model, inference_device)
-    FR_net = openvino_model(FR_model, inference_device)
-    LM_net = openvino_model(LM_model, inference_device)
+    inference_device = config["system"]["inference_device"]
+    FD_net = openvino_model(config["dl_models"]["FD_model"], inference_device)
+    FR_net = openvino_model(config["dl_models"]["FR_model"], inference_device)
+    LM_net = openvino_model(config["dl_models"]["LM_model"], inference_device)
 
     # Open USB webCam
-    img_width  = 640
-    img_height = 480
-    cam = cv2.VideoCapture(0)
+    img_width  = config["camera"]["width"]
+    img_height = config["camera"]["height"]
+    cam = cv2.VideoCapture(config["camera"]["port"])
     if cam.isOpened() == False:
-        logging.critical('Failed to open a USB webCam (0)')
+        logging.critical('Failed to open a USB webCam ({})'.format(config["camera"]["port"]))
         sys.exit(1)
-    cam.set(cv2.CAP_PROP_FRAME_WIDTH,  img_width)
-    cam.set(cv2.CAP_PROP_FRAME_HEIGHT, img_height)
+    cam.set(cv2.CAP_PROP_FRAME_WIDTH,  config["camera"]["width"])
+    cam.set(cv2.CAP_PROP_FRAME_HEIGHT, config["camera"]["height"])
 
-    # Open serial port (COM port) for Arduino (Adafruit Qwiic Pro Micro USB-C)
-    try:
-        com_speed = 115200
-        com = serial.Serial(com_port, com_speed, timeout=3)
-    except serial.serialutil.SerialException:
-        logging.critical('Failed to open serial port \'{}\''.format(com_port))
-        sys.exit(1)
-    com.reset_input_buffer();
+    temp_sensor = mlx90614()
+    temp_sensor.open()
 
     # Read and register face database
-    face_db = scan_and_register_faces('./face_db', FD_net, FR_net, LM_net)
+    face_db = scan_and_register_faces(config["system"]["database_dir"], FD_net, FR_net, LM_net)
 
     temp_record = []        # record of measured temerature data (to be exported to Excel)
 
-    beep_obj = simpleaudio.WaveObject.from_wave_file('resources/beep.wav')
+    beep_obj = simpleaudio.WaveObject.from_wave_file(config["sound"]["sound_file"])
 
     last_recognition_id, last_recognition_name = -1, 'none'
     current_person_id, current_person_name = -1, 'none'
@@ -168,7 +167,7 @@ def main(com_port:str):
                     idx, dist, person_id, person_name = 0, 1.0, -1, 'none'
 
         # Display image processing
-        if False:
+        if config["system"]["convert_to_line_art"] == "True":
             # Convert the picture into line drawing (edge detection)
             img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)        # color -> gray
             img_gray = cv2.split(img_gray)[0]                       # 3ch -> 1ch
@@ -178,14 +177,14 @@ def main(com_port:str):
             img_disp = img
 
         # Compensate measured temp
-        face_distance, object_temp, ambient_temp = receive_temp_data(com)
+        face_distance, object_temp, ambient_temp = temp_sensor.receive_temp_data()
         ofst = 0.0
-        comp_temp = temp_compensation(object_temp, ambient_temp, ofst)
+        comp_temp = temp_sensor.temp_compensation(object_temp, ambient_temp, ofst)
         logging.debug('Distance {:4.1f}cm Ambient {:4.1f}C, Object {:4.1f}C, Compensated {:4.1f}C'.format(face_distance, ambient_temp, object_temp, comp_temp))
 
         # Check distance and face validity, and record the measured temp
-        target_distance    = 10.0       # unit = cm
-        distance_torelance =  1.5       # unit = cm
+        target_distance    = config["distance_sensor"]["distance"]       # unit = cm
+        distance_torelance = config["distance_sensor"]["tolerance"]      # unit = cm
         distance_valid = True if face_distance>= (target_distance-distance_torelance) and face_distance<=(target_distance+distance_torelance) else False
         face_valid     = True if last_recognition_id != -1 else False
         if distance_valid and face_valid:
@@ -224,21 +223,20 @@ def main(com_port:str):
     dt = datetime.datetime.now()
     filename = 'body_temp_record_{:04}{:02}{:02}-{:02}{:02}{:02}.xlsx'.format(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
     logging.debug(temp_record)
-    consolidated_record = consolidate_result(temp_record)           # Consolidates records (同じIDのデータは平均を取ってまとめる)
+    consolidated_record = consolidate_result(temp_record, config)   # Consolidates records (同じIDのデータは平均を取ってまとめる)
     logging.debug(consolidated_record)
-    export_to_excel(filename, consolidated_record)                  # Export to Excel (Excelファイルに書き出し)
-    logging.info('"{}" is generated.'.format(filename))
+    if len(consolidated_record) > 0:
+        export_to_excel(filename, consolidated_record)              # Export to Excel (Excelファイルに書き出し)
+        logging.info('"{}" is generated.'.format(filename))
+    else:
+        logging.warning('No record is captured - No Excel file is generated.')
 
     cam.release()
-    com.close()
     return 0
 
 if __name__ == '__main__':
-    logging.basicConfig(level=[logging.INFO, logging.DEBUG, logging.WARN, logging.ERROR][0])
-    com_port = find_thermo_sensor()
-    if com_port is None:
-        logging.critical('Thermal sensor is not attached.')
-        sys.exit(1)
-    logging.info('{} will be used to communicate with the thermo sensor'.format(com_port))
+    with open('thermometer_cfg.json', 'rt') as f:    # read configurations from the configuration file
+        config = json.load(f)
+    logging.basicConfig(level=[logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG][config["system"]["log_level"]])
 
-    sys.exit(main(com_port))
+    sys.exit(main(config))

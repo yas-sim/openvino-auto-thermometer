@@ -1,0 +1,34 @@
+{
+    "temp_compensation": {
+        "coefficient" : -1.862,
+        "intercept"   : 6.8312
+    },
+    "distance_sensor" : {
+        "distance"  : 20.0,
+        "tolerance" : 1.5
+    },
+    "system": {
+        "log_level"           : 1,
+        "school_flag"         : "True",
+        "image_dir"           : "./face_images",
+        "database_dir"        : "./face_db",
+        "inference_device"    : "GPU",
+        "convert_to_line_art" : "False"
+    },
+    "dl_models" : {
+        "FD_model" : "intel/face-detection-retail-0004/FP16/face-detection-retail-0004.xml",
+        "FR_model" : "intel/face-reidentification-retail-0095/FP16/face-reidentification-retail-0095.xml",
+        "LM_model" : "intel/landmarks-regression-retail-0009/FP16/landmarks-regression-retail-0009.xml"
+    },
+    "camera" : {
+        "port"   : 0,
+        "width"  : 640,
+        "height" : 480
+    },
+    "com_port" : {
+        "speed" : 115200
+    },
+    "sound" : {
+        "sound_file" : "resources/beep.wav"
+    }
+}

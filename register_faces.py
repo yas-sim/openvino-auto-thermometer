@@ -5,7 +5,6 @@ import logging
 import numpy as np
 import cv2
 
-from config import *
 from submodules.openvino_model import *
 from submodules.common_face_utils import *
 
@@ -22,12 +21,16 @@ class numpyEncoder(json.JSONEncoder):
 
 logging.basicConfig(level=[logging.INFO, logging.DEBUG, logging.WARN, logging.ERROR][0])
 
-# Load OpenVINO Deep-learning models
-FD_net = openvino_model(FD_model, 'CPU')
-FR_net = openvino_model(FR_model, 'CPU')
-LM_net = openvino_model(LM_model, 'CPU')
+with open('thermometer_cfg.json', 'rt') as f:    # read configurations from the configuration file
+    config = json.load(f)
 
-pictures = glob.glob(os.path.join(image_dir, '*.jpg'))
+# Load OpenVINO Deep-learning models
+inference_device = config["system"]["inference_device"]
+FD_net = openvino_model(config["dl_models"]["FD_model"], inference_device)
+FR_net = openvino_model(config["dl_models"]["FR_model"], inference_device)
+LM_net = openvino_model(config["dl_models"]["LM_model"], inference_device)
+
+pictures = glob.glob(os.path.join(config["system"]["image_dir"], '*.jpg'))
 num_faces = 0
 for pic in pictures:
     in_img = cv2.imread(pic)
@@ -49,7 +52,7 @@ for pic in pictures:
     base_name, ext = os.path.splitext(filename)
     person_id, person_name = base_name.split('-')[:1+1]
 
-    json_file_name = os.path.join(database_dir, os.path.splitext(os.path.split(pic)[-1])[0]+'.json')
+    json_file_name = os.path.join(config["system"]["database_dir"], os.path.splitext(os.path.split(pic)[-1])[0]+'.json')
     record = [person_id, person_name, feat_vec]
     with open(json_file_name, 'wt') as f:
         json.dump(record, f, cls=numpyEncoder)
