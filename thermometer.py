@@ -1,14 +1,13 @@
-import sys
+import sys, time
 import glob
 import datetime
 import json
 import logging
 
-import serial
 import numpy as np
 import cv2
-from scipy import spatial
 import simpleaudio
+import serial
 
 from submodules.openvino_model import *
 from submodules.excel_operation import *
@@ -19,7 +18,7 @@ from submodules.mlx90614 import *
 
 def scan_and_register_faces(directory:str, FD_net, FR_net, LM_net):
     face_db = []
-    json_files = glob.glob(os.path.join(config["system"]["database_dir"], '*.json'))
+    json_files = glob.glob(os.path.join(config['system']['database_dir'], '*.json'))
     for json_file in json_files:
         with open(json_file, 'rt') as f:
             json_data = json.load(f)
@@ -96,7 +95,7 @@ def consolidate_result(temp_record:list, config):
         cmp_avg = sum(cmp_tmp) / len(cmp_tmp)
         obj_avg = sum(obj_tmp) / len(obj_tmp)
         amb_avg = sum(amb_tmp) / len(amb_tmp)
-        if config["system"]["school_flag"] == "True":
+        if config['system']['school_flag'] == 'True':
             fever_status =  '37度以上' if cmp_avg >= 37.0 else '37度以下'             # check if the person has fever
             record = [tmp_id, tmp_name, date, fever_status, cmp_avg, obj_avg, amb_avg]
         else:
@@ -110,30 +109,31 @@ def consolidate_result(temp_record:list, config):
 def main(config):
 
     # Load OpenVINO Deep-learning models
-    inference_device = config["system"]["inference_device"]
-    FD_net = openvino_model(config["dl_models"]["FD_model"], inference_device)
-    FR_net = openvino_model(config["dl_models"]["FR_model"], inference_device)
-    LM_net = openvino_model(config["dl_models"]["LM_model"], inference_device)
+    inference_device = config['system']['inference_device']
+    FD_net = openvino_model(config['dl_models']['FD_model'], inference_device)
+    FR_net = openvino_model(config['dl_models']['FR_model'], inference_device)
+    LM_net = openvino_model(config['dl_models']['LM_model'], inference_device)
 
     # Open USB webCam
     img_width  = config["camera"]["width"]
-    img_height = config["camera"]["height"]
-    cam = cv2.VideoCapture(config["camera"]["port"])
+    img_height = config['camera']['height']
+    cam_port   = config['camera']['port']
+    cam = cv2.VideoCapture(cam_port)
     if cam.isOpened() == False:
-        logging.critical('Failed to open a USB webCam ({})'.format(config["camera"]["port"]))
+        logging.critical('Failed to open a USB webCam ({})'.format(cam_port))
         sys.exit(1)
-    cam.set(cv2.CAP_PROP_FRAME_WIDTH,  config["camera"]["width"])
-    cam.set(cv2.CAP_PROP_FRAME_HEIGHT, config["camera"]["height"])
+    cam.set(cv2.CAP_PROP_FRAME_WIDTH,  config['camera']['width'])
+    cam.set(cv2.CAP_PROP_FRAME_HEIGHT, config['camera']['height'])
 
     temp_sensor = mlx90614()
     temp_sensor.open()
 
     # Read and register face database
-    face_db = scan_and_register_faces(config["system"]["database_dir"], FD_net, FR_net, LM_net)
+    face_db = scan_and_register_faces(config['system']['database_dir'], FD_net, FR_net, LM_net)
 
     temp_record = []        # record of measured temerature data (to be exported to Excel)
 
-    beep_obj = simpleaudio.WaveObject.from_wave_file(config["sound"]["sound_file"])
+    beep_obj = simpleaudio.WaveObject.from_wave_file(config['sound']['sound_file'])
 
     last_recognition_id, last_recognition_name = -1, 'none'
     current_person_id, current_person_name = -1, 'none'
@@ -167,7 +167,7 @@ def main(config):
                     idx, dist, person_id, person_name = 0, 1.0, -1, 'none'
 
         # Display image processing
-        if config["system"]["convert_to_line_art"] == "True":
+        if config['system']['convert_to_line_art'] == 'True':
             # Convert the picture into line drawing (edge detection)
             img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)        # color -> gray
             img_gray = cv2.split(img_gray)[0]                       # 3ch -> 1ch
@@ -176,15 +176,28 @@ def main(config):
         else:
             img_disp = img
 
+        # Read temp and distance from the sensors
+        try:
+            face_distance, object_temp, ambient_temp = temp_sensor.receive_temp_data()
+        except serial.serialutil.SerialException:
+            while True:
+                logging.info('Trying to re-open temp sensor')
+                time.sleep(1)
+                try:
+                    del temp_sensor
+                    temp_sensor = mlx90614()
+                    temp_sensor.open()
+                    break
+                except:
+                    pass
         # Compensate measured temp
-        face_distance, object_temp, ambient_temp = temp_sensor.receive_temp_data()
         ofst = 0.0
         comp_temp = temp_sensor.temp_compensation(object_temp, ambient_temp, ofst)
         logging.debug('Distance {:4.1f}cm Ambient {:4.1f}C, Object {:4.1f}C, Compensated {:4.1f}C'.format(face_distance, ambient_temp, object_temp, comp_temp))
 
         # Check distance and face validity, and record the measured temp
-        target_distance    = config["distance_sensor"]["distance"]       # unit = cm
-        distance_torelance = config["distance_sensor"]["tolerance"]      # unit = cm
+        target_distance    = config['distance_sensor']['distance']       # unit = cm
+        distance_torelance = config['distance_sensor']['tolerance']      # unit = cm
         distance_valid = True if face_distance>= (target_distance-distance_torelance) and face_distance<=(target_distance+distance_torelance) else False
         face_valid     = True if last_recognition_id != -1 else False
         if distance_valid and face_valid:
@@ -237,6 +250,6 @@ def main(config):
 if __name__ == '__main__':
     with open('thermometer_cfg.json', 'rt') as f:    # read configurations from the configuration file
         config = json.load(f)
-    logging.basicConfig(level=[logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG][config["system"]["log_level"]])
+    logging.basicConfig(level=[logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG][config['system']['log_level']])
 
     sys.exit(main(config))

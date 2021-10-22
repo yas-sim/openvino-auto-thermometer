@@ -9,16 +9,19 @@ from color_table import *
 class mlx90614:
     def __init__(self):
         with open('thermometer_cfg.json', 'rt') as f:    # read configurations from the configuration file
+            self.com_port = None
+            self.com_port_device = None
             self.config = json.load(f)
 
     def __del__(self):
-        self.com_port.close()
+        if not self.com_port is None:
+            self.com_port.close()
 
     def receive_temp_data(self):
         while True:
             line = self.com_port.readline().decode('utf-8').replace('\n', '').replace('\r', '')
             if len(line)==0:
-                logging.warning('COM port ({}) timed out. A wrong port is specified possibly.'.format(com_port))
+                logging.warning('COM port ({}) timed out. A wrong port is specified possibly.'.format(self.com_port))
                 continue
             if line[0] == '%':
                 line_data = line[1:].split(',')
@@ -30,7 +33,9 @@ class mlx90614:
                 return dist, temp_obj, temp_amb
 
     def temp_compensation(self, t_obj, t_amb, ofst=0):
-        offset = self.config["temp_compensation"]["coefficient"] * t_amb + self.config["temp_compensation"]["intercept"] + ofst
+        coefficient = self.config['temp_compensation']['coefficient']
+        intercept = self.config['temp_compensation']['intercept']
+        offset = coefficient * t_amb + intercept + ofst
         return t_obj + offset
 
     def find_thermo_sensor(self):
@@ -54,7 +59,7 @@ class mlx90614:
 
         # Open serial port (COM port) for Arduino (Adafruit Qwiic Pro Micro USB-C)
         try:
-            com_speed = self.config["com_port"]["speed"]
+            com_speed = self.config['com_port']['speed']
             self.com_port = serial.Serial(self.com_port_device, com_speed, timeout=3)
         except serial.serialutil.SerialException:
             logging.critical('Failed to open serial port \'{}\''.format(self.com_port_device))
