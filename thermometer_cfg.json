@@ -1,7 +1,7 @@
 {
     "temp_compensation": {
-        "coefficient" : -0.1885,
-        "intercept"   : 6.8956
+        "coefficient" : -0.1857,
+        "intercept"   : 6.8096
     },
     "distance_sensor" : {
         "distance"  : 10.0,
@@ -26,6 +26,8 @@
         "height" : 480
     },
     "com_port" : {
+        "pid" : "0x9206",
+        "vid" : "0x1b4f",
         "speed" : 115200
     },
     "sound" : {

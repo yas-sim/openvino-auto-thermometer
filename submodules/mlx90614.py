@@ -47,7 +47,8 @@ class mlx90614:
             else:
                 pid, vid = device.pid, device.vid
             logging.debug('COM port {}, PID, {:04x}, VID {:04x}'.format(device.device, pid, vid))
-            if pid == 0x9206 and vid == 0x1b4f:     # PID(0x9206 == Pro micro Arduino, VID(0x1b4f) == SparkFun)
+            # PID(0x9206 == Pro micro Arduino, VID(0x1b4f) == SparkFun)
+            if pid == int(self.config['com_port']['pid'], 16) and vid == int(self.config['com_port']['vid'], 16):
                 self.com_port_device = device.device
 
     def open(self):
