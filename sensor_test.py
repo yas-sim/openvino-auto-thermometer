@@ -28,6 +28,4 @@ while True:
                 break
             except:
                 pass
-
-
     logging.info('{:4.2f}cm {:4.2f}C {:4.2f}C'.format(distance, object_temp, ambient_temp))
