@@ -9,16 +9,16 @@ import json
 def export_to_excel(filename:str, data:list):
     with open('thermometer_cfg.json', 'rt') as f:    # read configurations from the configuration file
         config = json.load(f)
-
     if config['system']['school_flag'] == 'True':
         dt = datetime.datetime.now()
         date_str = '{}/{}/{}'.format(dt.year, dt.month, dt.day)
-        workbook = openpyxl.load_workbook(filename)
-        worksheet = workbook['1年生投入シート']
+        workbook = openpyxl.load_workbook(config['excel']['filename'])
+        worksheet = workbook[config['excel']['worksheet']]
         for row, line in enumerate(data):
             student_id   = line[0]
             student_name = line[1]
             student_temp = line[4]
+            print(student_id, student_name, student_temp)
             worksheet.cell(column=2, row=row+2, value=date_str)
             worksheet.cell(column=3, row=row+2, value=student_id)
             if student_temp < 37.0:
@@ -27,6 +27,11 @@ def export_to_excel(filename:str, data:list):
             else:
                 worksheet.cell(column=4, row=row+2, value='37℃ 以上')
                 worksheet.cell(column=5, row=row+2, value=student_temp)
-        workbook.save(filename)
+        workbook.save(config['excel']['filename'])
     else:
-
+        workbook = openpyxl.Workbook()
+        worksheet = workbook.active
+        for row, line in enumerate(data):
+            for col, dt in enumerate(line):
+                worksheet.cell(column=col+1, row=row+1, value=dt)
+        workbook.save(filename)

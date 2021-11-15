@@ -32,5 +32,9 @@
     },
     "sound" : {
         "sound_file" : "resources/beep.wav"
+    },
+    "excel": {
+        "filename" : "池田先生フォルダ.xlsx",
+        "worksheet" : "1年生投入シート"
     }
 }

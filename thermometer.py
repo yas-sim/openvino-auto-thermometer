@@ -235,7 +235,6 @@ def main(config):
 
     dt = datetime.datetime.now()
     filename = 'body_temp_record_{:04}{:02}{:02}-{:02}{:02}{:02}.xlsx'.format(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
-    filename = '池田先生フォルダ.xlsx'
     logging.debug(temp_record)
     consolidated_record = consolidate_result(temp_record, config)   # Consolidates records (同じIDのデータは平均を取ってまとめる)
     logging.debug(consolidated_record)
