@@ -28,7 +28,6 @@ def export_to_excel(filename:str, data:list):
         worksheet = workbook[config['excel']['worksheet']]
 
         row = search_for_last_row(worksheet)
-        print(row)
         for line in data:
             student_id   = line[0]
             student_name = line[1]
