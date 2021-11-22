@@ -32,7 +32,6 @@ def export_to_excel(filename:str, data:list):
             student_id   = line[0]
             student_name = line[1]
             student_temp = line[4]
-            print(student_id, student_name, student_temp)
             worksheet.cell(column=2, row=row, value=date_str)
             worksheet.cell(column=3, row=row, value=student_id)
             if student_temp < 37.0:
