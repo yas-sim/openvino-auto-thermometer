@@ -34,7 +34,7 @@
         "sound_file" : "resources/beep.wav"
     },
     "excel": {
-        "filename" : "池田先生フォルダ.xlsx",
-        "worksheet" : "1年生投入シート"
+        "filename" : "健康観察2年生.xlsx",
+        "worksheet" : "2年生PDF化用シート"
     }
 }

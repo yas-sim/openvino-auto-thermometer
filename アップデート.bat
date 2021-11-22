@@ -1,4 +1,4 @@
 @echo off
 git pull
-git checkout master
+git checkout excel_operation
 pause
