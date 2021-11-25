@@ -1,7 +1,7 @@
 {
     "temp_compensation": {
-        "coefficient" : -0.1857,
-        "intercept"   : 6.8096
+        "coefficient" : -0.18385596429745682,
+        "intercept"   : 6.745037877858295
     },
     "distance_sensor" : {
         "distance"  : 10.0,
